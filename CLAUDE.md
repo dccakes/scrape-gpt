@@ -4,44 +4,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a graph-native entity resolution system for healthcare professional data that processes 500K+ records in under 30 minutes. The system uses PostgreSQL for storage, DuckDB for high-performance analytics, Parquet for intermediate data, and NetworkX for clustering.
+This is an intelligent web scraping system that combines deterministic XPath extraction with LLM-powered adaptation. The LLM acts as a "compiler" that generates extraction rules, not as a runtime extractor. This approach dramatically reduces cost while maintaining high accuracy.
 
-**Key Performance Targets:**
-- Full resolution (500K entities): <30 minutes (16x faster than legacy)
-- Incremental updates (5K entities): <5 minutes (12x faster than legacy)
-- Precision: >95%, Recall: >90%
+**Key Features:**
+- Multi-sample config generation (3-5 pages for robust selectors)
+- Field-level LLM fallback (85% cost reduction vs page-level)
+- Validation + repair loops (quality gates)
+- Coverage tracking (health monitoring)
+
+**Performance Targets:**
+- Config generation: <$0.15 per page type
+- Runtime extraction: >85% XPath success rate
+- LLM cost: <$0.003 per page (field-level fallback)
+- Coverage: >80% selector reliability
 
 ## Essential Development Commands
 
 ### Environment Setup
 - `make setup` - Install dependencies with uv and configure pre-commit hooks
-- `make dev` - Start development environment
-- `make down` - Stop all services
-- `make clean` - Clean up environment including volumes
-- `make rebuild` - Complete rebuild of development environment
-
-### Database Operations
-- `make migrate` - Apply all pending Alembic migrations
-- `make db-reset` - Reset database and reapply migrations
-- `make migrate-create message="description"` - Create new migration file
-
-### Data Pipeline Operations
-- `make ingest source=colorado_pt file=data.csv` - Run ingestion for a source
-- `make export type=full` - Export entities to Parquet (full or incremental)
-- `make resolve entity_type=person` - Run entity resolution
-- `make import run_id=<id>` - Import resolved clusters
+- `make install` - Install project dependencies only
+- `make clean` - Clean up virtual environment and caches
 
 ### Testing & Code Quality
 - `make test` - Run unit tests with pytest (excludes integration tests)
 - `make test-integration` - Run integration tests
 - `make test-all` - Run all tests
-- `make test-performance` - Run performance benchmarks
 - `make lint` - Run ruff and mypy checks
 - `make lint-fix` - Auto-fix linting issues with ruff
+- `make format` - Format code with black
 
-### Monitoring
-- `make metrics` - View OpenTelemetry metrics
-- `make logs component=resolution` - View logs for specific component
+### Development
+- `make run` - Run the scraper CLI
+- `make shell` - Start IPython shell with imports
 
 ## Architecture Overview
 
@@ -49,13 +43,13 @@ This is a graph-native entity resolution system for healthcare professional data
 
 **Clean Architecture:** Domain-driven design with clear separation of concerns
 - Domain layer (business logic) is independent of infrastructure
-- Dependencies point inward: API → Services → Domain
-- Use cases orchestrate business workflows
+- Dependencies point inward: Use Cases → Ports → Domain
+- Adapters implement ports and connect to external systems
 
 **YAGNI (You Aren't Gonna Need It):** Build only what's specified
 - No speculative features
 - No premature optimization
-- Stick to the specifications (see `/docs/specifications/`)
+- Stick to the specifications (see `/docs/`)
 
 **Test-Driven Development:** All code written via Red-Green-Refactor
 - Write failing test first (RED)
@@ -64,153 +58,254 @@ This is a graph-native entity resolution system for healthcare professional data
 
 ### System Architecture
 
-The system follows a **four-phase pipeline**:
+The system follows a **three-phase pipeline**:
 
 ```
-Phase 1: INGESTION        Phase 2: EXPORT           Phase 3: RESOLUTION       Phase 4: IMPORT
-CSV → PostgreSQL    →    PostgreSQL → Parquet  →    DuckDB Processing    →    PostgreSQL Profiles
-(Quality + Lineage)      (Graph Format)            (Matching + Clustering)   (Serving Layer)
+Phase 1: CONFIG GENERATION         Phase 2: EXTRACTION              Phase 3: STORAGE
+Multi-Sample Learning       →      Deterministic XPath       →      HTML + JSON
+(LLM generates selectors)          + Field-Level Fallback           (with coverage stats)
 ```
 
 ### Directory Structure
 
 ```
-pickle-entity-resolution/
-├── src/
-│   ├── ingestion/          # Phase 1: CSV → PostgreSQL
-│   │   ├── ingestion_service.py
-│   │   ├── quality_validator.py
-│   │   └── hash_computer.py
-│   ├── export/             # Phase 2: PostgreSQL → Parquet
-│   │   ├── export_service.py
-│   │   ├── query_builder.py
-│   │   ├── schema_converter.py
-│   │   └── parquet_writer.py
-│   ├── resolution/         # Phase 3: DuckDB entity resolution
-│   │   ├── resolution_engine.py
-│   │   ├── blocking_service.py
-│   │   ├── candidate_generator.py
-│   │   ├── graph_context_service.py
-│   │   ├── matching_service.py
-│   │   └── clustering_service.py
-│   ├── import/             # Phase 4: Clusters → PostgreSQL
-│   │   ├── import_service.py
-│   │   ├── cluster_differ.py
-│   │   └── database_updater.py
-│   ├── db/
-│   │   └── models/         # SQLAlchemy models
-│   │       ├── person.py
-│   │       ├── medical_license.py
-│   │       ├── data_pull.py
-│   │       ├── entity_cluster.py
-│   │       └── cluster_membership.py
-│   ├── domain/             # Domain models and interfaces
-│   │   └── enums/
-│   ├── config/             # Configuration loaders
-│   └── observability/      # OpenTelemetry setup
-├── config/
-│   ├── sources/            # YAML source configurations
-│   ├── entities/           # YAML entity configurations
-│   └── quality_rules/      # YAML quality validation rules
+scrape-gpt/
+├── scraper/
+│   ├── domain/             # Domain models and business logic
+│   │   ├── models.py      # Pydantic models (PageSample, ExtractionResult, etc.)
+│   │   └── exceptions.py  # Domain-specific exceptions
+│   ├── ports/              # Interface definitions (ABC classes)
+│   │   ├── fetcher.py     # PageFetcher interface
+│   │   ├── extractor.py   # Extractor interface
+│   │   ├── llm.py         # LLMProvider interface
+│   │   ├── storage.py     # Storage interface
+│   │   └── alerting.py    # Alerting interface
+│   ├── adapters/           # Port implementations
+│   │   ├── fetchers/
+│   │   │   ├── httpx_fetcher.py      # Simple HTTP GET
+│   │   │   └── playwright_fetcher.py # Full browser with JS
+│   │   ├── extractors/
+│   │   │   └── lxml_extractor.py     # XPath/CSS extraction
+│   │   ├── llm/
+│   │   │   ├── direct_provider.py    # Direct Anthropic/OpenAI
+│   │   │   └── pocketflow_provider.py # PocketFlow orchestration
+│   │   ├── storage/
+│   │   │   ├── local_storage.py      # Local filesystem
+│   │   │   └── s3_storage.py         # AWS S3
+│   │   └── alerting/
+│   │       ├── console_alerting.py   # Console output
+│   │       └── knock_alerting.py     # Knock.app
+│   ├── use_cases/          # Business workflows
+│   │   ├── generate_config.py        # Phase 1: Config generation
+│   │   ├── extract_with_fallback.py  # Phase 2: Extraction
+│   │   └── scrape_page.py            # End-to-end orchestration
+│   ├── config.py           # DI Container
+│   └── cli.py              # Command-line interface
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── fixtures/
-│       └── synthetic_data.py
+│   ├── unit/               # Fast, isolated tests
+│   ├── integration/        # Real adapters
+│   └── e2e/                # Full stack
 ├── docs/
-│   └── specifications/     # Complete specification suite
-│       ├── 00-SYSTEM-OVERVIEW.md
-│       ├── 01-INGESTION-SPECS.md
-│       ├── 02-EXPORT-SPECS.md
-│       ├── 03-RESOLUTION-SPECS.md
-│       ├── 04-IMPORT-SPECS.md
-│       └── 05-MIGRATION-SPECS.md
-└── alembic/                # Database migrations
+│   ├── SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md  # Complete spec
+│   ├── ParserGPT_Comparison.md                # Design rationale
+│   └── adr/                                    # Architecture decisions
+└── data/                   # Generated configs and scraped data
 ```
 
 ### Key Architectural Patterns
 
-#### Service Layer
-Each pipeline phase has a primary service class that orchestrates the workflow:
-- `IngestionService`: CSV parsing → validation → PostgreSQL
-- `ExportService`: PostgreSQL → Parquet export
-- `ResolutionEngine`: DuckDB-based entity resolution
-- `ImportService`: Resolved clusters → PostgreSQL
+#### Clean Architecture Layers
 
-Services are stateless and dependency-injected. They coordinate between repositories, domain logic, and external systems.
+**1. Domain Layer** (`scraper/domain/`)
+- Pure business logic, no external dependencies
+- Models: `PageSample`, `ExtractionResult`, `PageTypeConfig`, etc.
+- Exceptions: `FetchError`, `ExtractionError`, `ConfigGenerationError`
 
-#### Repository Pattern
-Repositories handle database access (PostgreSQL only):
-- `DataPullRepository`
-- `EntityRepository` (base class)
-- `PersonRepository`
-- `MedicalLicenseRepository`
-- `EntityClusterRepository`
-- `ClusterMembershipRepository`
+**2. Ports Layer** (`scraper/ports/`)
+- Abstract interfaces (ABC classes)
+- Define contracts between domain and adapters
+- Five core ports: `PageFetcher`, `Extractor`, `LLMProvider`, `Storage`, `Alerting`
 
-**Guidelines:**
-- Always use `session.flush()` after write operations
-- Keep business logic in use cases/services, not repositories
-- Repositories can reference other repositories
-- Use async/await for all database operations
+**3. Adapters Layer** (`scraper/adapters/`)
+- Concrete implementations of ports
+- Each adapter <150 lines (KISS principle)
+- Swappable via `.env` configuration
 
-#### Domain Models
-Domain models represent business concepts and rules:
-- Dataclasses for requests/results (e.g., `IngestionRequest`, `ResolutionResult`)
-- Stats objects (e.g., `BlockingStats`, `MatchingStats`)
-- Enums for controlled vocabularies
+**4. Use Cases Layer** (`scraper/use_cases/`)
+- Orchestrate business workflows
+- Depend only on ports, never on adapters
+- Stateless with dependency injection
 
-**Guidelines:**
-- Keep domain logic independent of infrastructure
-- No database dependencies in domain layer
-- Domain models validate their own invariants
+#### Port Definitions
 
-#### Configuration Management
-Three types of configuration:
-1. **Source configs** (`config/sources/*.yaml`): Define CSV parsing and field mappings
-2. **Entity configs** (`config/entities/*.yaml`): Define blocking rules, comparison pipelines
-3. **Quality rules** (`config/quality_rules/*.yaml`): Define validation rules
+**PageFetcher:** Fetch HTML from URLs
+```python
+class PageFetcher(ABC):
+    @abstractmethod
+    async def fetch(self, url: str, timeout: int = 30000) -> str:
+        pass
+```
 
-All configs are YAML-based and loaded at runtime. Changes require service restart.
+**Extractor:** Extract structured data using XPath/CSS
+```python
+class Extractor(ABC):
+    @abstractmethod
+    def extract(self, html: str, config: Dict[str, Any]) -> ExtractionResult:
+        pass
+```
 
-### Data Flow & Schemas
+**LLMProvider:** LLM operations (config generation, field extraction)
+```python
+class LLMProvider(ABC):
+    @abstractmethod
+    async def propose_selectors(
+        self, samples: List[PageSample], schema: Dict[str, Any], domain_context: str
+    ) -> PageTypeConfig:
+        pass
 
-#### PostgreSQL Schema (Storage Layer)
+    @abstractmethod
+    async def repair_selectors(
+        self, current_config: PageTypeConfig, failures: List[FieldFailure], samples: List[PageSample]
+    ) -> PageTypeConfig:
+        pass
 
-**pickle_data schema:**
-- `data_sources`: Source metadata
-- `data_pulls`: Ingestion run tracking
-- `data_records`: Raw records
-- `people`, `medical_licenses`, `external_organizations`, `places`, `contact_information`: Entity tables (with lineage fields)
-- `record_entities`: Many-to-many relationship table
-- `entity_clusters`: Resolved clusters
-- `cluster_membership`: Entity-to-cluster assignments
-- `resolution_runs`: Resolution run metadata
+    @abstractmethod
+    async def extract_fields(
+        self, html: str, fields_to_extract: List[str], schema: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        pass
+```
 
-**Key Fields Added to All Entity Tables:**
-- `pull_id` (UUID): Links to data_pulls
-- `source_record_hash` (String): SHA-256 for deduplication
-- `quality_flags` (JSONB): Quality validation results
-- `used_in_matching` (Boolean): Include in resolution
+**Storage:** Save/load configs, HTML, JSON, and coverage stats
+```python
+class Storage(ABC):
+    @abstractmethod
+    async def save_config(self, domain: str, page_type: str, config: Dict[str, Any]) -> str:
+        pass
 
-#### Parquet Schema (Compute Layer)
+    @abstractmethod
+    async def load_config(self, domain: str, page_type: str) -> Optional[Dict[str, Any]]:
+        pass
 
-**nodes.parquet:**
-- Common fields: id, type, pull_id, source_id, quality_flags, used_in_matching
-- Type-specific fields: given_name, family_name (person), license_number (license), etc.
+    @abstractmethod
+    async def update_coverage_stats(self, domain: str, page_type: str, field_name: str, success: bool) -> None:
+        pass
 
-**edges.parquet:**
-- from_id, to_id, edge_type (issued_to, employed_by, located_at, same_as)
-- Temporal: valid_from, valid_to
-- Properties: confidence, metadata (JSONB)
+    @abstractmethod
+    async def get_coverage_stats(self, domain: str, page_type: str) -> Dict[str, float]:
+        pass
+```
 
-#### DuckDB Processing
-DuckDB loads Parquet files for in-memory analytics:
-- Blocking key generation (SQL + UDFs)
-- Candidate pair generation (self-join)
-- Graph context enrichment (lateral joins)
-- Match scoring (comparison pipelines)
-- Results exported back to Parquet
+**Alerting:** Send notifications
+```python
+class Alerting(ABC):
+    @abstractmethod
+    async def send_alert(
+        self, title: str, message: str, severity: AlertSeverity, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        pass
+```
+
+#### Use Cases
+
+**1. GenerateConfig** (Phase 1: Config Generation)
+- Collects 3-5 sample pages
+- LLM proposes XPath selectors
+- Validates selectors on all samples
+- Repairs failing selectors (up to 3 iterations)
+- Saves config with >80% coverage
+
+**2. ExtractWithFallback** (Phase 2: Extraction)
+- Tries XPath extraction first (fast, cheap)
+- Identifies missing required fields
+- Uses LLM for only missing fields (field-level fallback)
+- Merges results (prefers deterministic)
+- Updates coverage statistics
+
+**3. ScrapePage** (End-to-End Orchestration)
+- Fetches HTML
+- Loads or generates config
+- Extracts with field-level fallback
+- Saves HTML + JSON + updates coverage
+
+#### Dependency Injection Container
+
+The `Container` class in `config.py` resolves adapters based on `.env` variables:
+
+```python
+# .env
+FETCHER=playwright
+STORAGE=local
+LLM_PROVIDER=direct
+ALERTING=console
+
+# Usage
+from scraper.config import container
+
+scraper = ScrapePage(
+    fetcher=container.fetcher,       # PlaywrightFetcher
+    extractor=container.extractor,   # LxmlExtractor
+    llm=container.llm,               # DirectProvider
+    storage=container.storage,       # LocalStorage
+    alerting=container.alerting      # ConsoleAlerting
+)
+```
+
+**Swap providers with zero code changes!**
+
+### Data Flow & Models
+
+#### Core Domain Models
+
+**PageSample:** Sample page for config generation
+```python
+class PageSample(BaseModel):
+    url: HttpUrl
+    html: str
+    fetched_at: datetime
+```
+
+**FieldFailure:** Field that failed extraction
+```python
+class FieldFailure(BaseModel):
+    field_name: str
+    sample_url: HttpUrl
+    html_snippet: str
+    current_selector: Optional[str]
+```
+
+**ExtractionResult:** Result of extraction
+```python
+class ExtractionResult(BaseModel):
+    data: Dict[str, Any]
+    extraction_method: ExtractionMethod
+    confidence: float
+    fields_extracted: int
+    fields_missing: List[str]
+    llm_fields_used: List[str]  # NEW in v2.0
+    attempted_selectors: Dict[str, str]
+```
+
+**PageTypeConfig:** Configuration for a page type
+```python
+class PageTypeConfig(BaseModel):
+    version: str
+    domain: str
+    page_type: PageType
+    selectors: Dict[str, Dict[str, Any]]
+    schema: Dict[str, Any]
+    coverage_stats: Dict[str, float]  # NEW in v2.0
+    last_validated: Optional[datetime]
+    total_pages_tested: int
+```
+
+#### Extraction Methods
+
+- `XPATH`: Pure XPath extraction
+- `XPATH_WITH_LLM_FALLBACK`: XPath + field-level LLM (most common)
+- `LLM_FALLBACK`: LLM for missing fields only
+- `LLM_DIRECT`: Full LLM extraction (rare, expensive)
+- `FAILED`: Both XPath and LLM failed
 
 ## Testing Strategy
 
@@ -218,7 +313,7 @@ DuckDB loads Parquet files for in-memory analytics:
 
 **Every feature MUST follow Red-Green-Refactor:**
 
-1. **RED:** Write a failing test based on specification (SPEC-XXX)
+1. **RED:** Write a failing test based on specification
    - Test defines the behavior we want
    - Test should fail because feature doesn't exist yet
    - NEVER write production code without a failing test first
@@ -236,42 +331,67 @@ DuckDB loads Parquet files for in-memory analytics:
 
 ### Test Organization
 
-Tests map to specifications in `/docs/specifications/`:
-
 ```
-Specification: SPEC-T1-030
-Test: TDD-T1-030 in tests/unit/test_ingestion/test_entity_models.py
+tests/
+├── unit/                   # Fast, isolated (mock dependencies)
+│   ├── test_domain/
+│   ├── test_adapters/
+│   └── test_use_cases/
+├── integration/            # Real adapters (no mocks)
+│   ├── test_llm/
+│   ├── test_storage/
+│   └── test_extraction/
+└── e2e/                    # Full stack (real URLs)
+    └── test_full_flow.py
 ```
 
 **Test Categories:**
-- `unit`: Fast, isolated tests (services, domain logic, repositories)
-- `integration`: End-to-end tests (full pipeline, database, S3)
-- `performance`: Benchmarks (must meet spec targets)
+- `unit`: Fast (<1s total), no I/O, mock all ports
+- `integration`: Slower (seconds), real adapters, test boundaries
+- `e2e`: Slowest (minutes), full system, real websites
 
 **Example Test Structure:**
 ```python
-# tests/unit/test_ingestion/test_quality_validator.py
+# tests/unit/test_use_cases/test_extract_with_fallback.py
 
-def test_validator_detects_missing_required_fields():
-    """TDD-T1-053: GIVEN person missing family_name, WHEN validated, 
-    THEN validation fails with missing_required_fields error."""
+async def test_field_level_fallback_only_extracts_missing_fields():
+    """GIVEN XPath extracted 9/10 fields, WHEN LLM fallback runs,
+    THEN only the missing field is sent to LLM."""
     # Arrange
-    validator = QualityValidator(config_dir="config/quality_rules")
-    person_data = {"given_name": "John"}  # Missing family_name
-    
-    # Act
-    result = validator.validate("person", person_data)
-    
-    # Assert
-    assert result.is_valid == False
-    assert "family_name" in result.missing_required_fields
-```
+    extractor = Mock(Extractor)
+    llm = Mock(LLMProvider)
+    storage = Mock(Storage)
+    alerting = Mock(Alerting)
 
-### Test Environment
-- Temporary PostgreSQL database per test session
-- Alembic migrations applied automatically
-- Factory pattern for test data (`tests/fixtures/synthetic_data.py`)
-- Mock S3 using moto or local filesystem
+    xpath_result = ExtractionResult(
+        data={"name": "John", "title": "CTO", "phone": "555-1234"},
+        extraction_method=ExtractionMethod.XPATH,
+        fields_missing=["email"]  # Only email is missing
+    )
+    extractor.extract.return_value = xpath_result
+
+    llm.extract_fields.return_value = {"email": "john@example.com"}
+
+    use_case = ExtractWithFallback(extractor, llm, storage, alerting)
+
+    # Act
+    result = await use_case.execute(
+        url="https://example.com/team",
+        domain="example.com",
+        page_type=PageType.TEAM_PAGE,
+        html="<html>...</html>",
+        config=mock_config
+    )
+
+    # Assert
+    llm.extract_fields.assert_called_once_with(
+        html="<html>...</html>",
+        fields_to_extract=["email"],  # Only missing field!
+        schema={"email": {"type": "string"}}
+    )
+    assert result.data["email"] == "john@example.com"
+    assert result.llm_fields_used == ["email"]
+```
 
 ### Running Tests
 ```bash
@@ -279,16 +399,19 @@ def test_validator_detects_missing_required_fields():
 make test
 
 # Run specific test file
-uv run pytest tests/unit/test_ingestion/test_quality_validator.py
+pytest tests/unit/test_use_cases/test_extract_with_fallback.py -v
 
 # Run tests matching a pattern
-uv run pytest -k "validator"
+pytest -k "field_level" -v
 
 # Run with coverage
-uv run pytest --cov=src tests/
+pytest --cov=scraper tests/
 
 # Run integration tests (slower)
 make test-integration
+
+# Run all tests
+make test-all
 ```
 
 ## Code Style & Standards
@@ -311,10 +434,10 @@ def process(data):
 def process(data):
     if not data:
         return None
-    
+
     if not data.valid:
         return handle_invalid(data)
-    
+
     return process_valid(data)
 ```
 
@@ -327,8 +450,8 @@ def process(data):
 
 ### Naming Conventions
 
-- Functions: `snake_case`, verb-based (`calculate_match_score`, `validate_entity`)
-- Classes: `PascalCase` (`QualityValidator`, `IngestionService`)
+- Functions: `snake_case`, verb-based (`calculate_coverage`, `validate_config`)
+- Classes: `PascalCase` (`PageFetcher`, `ExtractWithFallback`)
 - Constants: `UPPER_SNAKE_CASE` for true constants
 - Files: `snake_case.py`
 - Test files: `test_*.py`
@@ -337,17 +460,17 @@ def process(data):
 
 **Required for all function signatures:**
 ```python
-def compute_hash(record: dict[str, Any]) -> str:
-    """Compute SHA-256 hash of record."""
+def calculate_coverage(results: List[ExtractionResult], schema: Dict[str, Any]) -> float:
+    """Calculate overall coverage across all results."""
     ...
 
-async def ingest_source(
+async def extract_fields(
     self,
-    source_slug: str,
-    file_path: str,
-    batch_size: int = 1000
-) -> IngestionResult:
-    """Run ingestion pipeline."""
+    html: str,
+    fields_to_extract: List[str],
+    schema: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Extract only specific fields using LLM."""
     ...
 ```
 
@@ -357,17 +480,33 @@ async def ingest_source(
 
 **Docstrings:** Use for public APIs and complex algorithms
 ```python
-def generate_blocking_keys(self, entity_type: str) -> BlockingStats:
-    """Generate blocking keys for entity type using YAML-configured rules.
-    
-    Applies each blocking rule in priority order, generates keys via SQL,
-    filters oversized blocks, and stores in blocking_keys table.
-    
+async def generate_config_with_validation(
+    domain: str,
+    page_type: PageType,
+    samples: List[PageSample],
+    target_schema: Dict[str, Any],
+    coverage_threshold: float = 0.8,
+    max_iterations: int = 3
+) -> PageTypeConfig:
+    """
+    Generate config with validation loop.
+
+    Flow:
+    1. Propose selectors based on samples
+    2. Validate against all samples
+    3. If coverage < 80%, repair with targeted fixes
+    4. Repeat up to 3 times
+
     Args:
-        entity_type: Type of entity (person, license, organization)
-    
+        domain: Domain name
+        page_type: Type of page
+        samples: 3-5 sample pages
+        target_schema: Expected output schema
+        coverage_threshold: Minimum acceptable coverage (default: 0.8)
+        max_iterations: Max repair iterations (default: 3)
+
     Returns:
-        BlockingStats with block counts and size distribution
+        Validated PageTypeConfig with high confidence
     """
 ```
 
@@ -377,190 +516,88 @@ def generate_blocking_keys(self, entity_type: str) -> BlockingStats:
 
 **Use custom domain exceptions:**
 ```python
-# src/domain/errors.py
-class IngestionError(Exception):
-    """Raised when ingestion pipeline fails."""
-    
-class QualityValidationError(Exception):
-    """Raised when validation rules violated."""
+# scraper/domain/exceptions.py
+class ScraperError(Exception):
+    """Base exception for scraper errors."""
+
+class FetchError(ScraperError):
+    """Raised when page fetching fails."""
+
+class ExtractionError(ScraperError):
+    """Raised when extraction fails."""
+
+class ConfigGenerationError(ScraperError):
+    """Raised when config generation fails."""
 ```
 
 **Log errors with context:**
 ```python
 try:
-    result = await service.ingest(request)
-except IngestionError as e:
-    logger.error(f"Ingestion failed for {request.source_slug}: {e}")
+    result = await use_case.execute(request)
+except ConfigGenerationError as e:
+    logger.error(f"Config generation failed for {domain}/{page_type}: {e}")
     raise
 ```
 
-## Working with Specifications
-
-### Specification Structure
-
-All system behavior is defined in `/docs/specifications/`:
-- **SPEC-XXX:** Defines what the system should do
-- **TDD-XXX:** Defines what tests should verify
-
-**Example:**
-```
-SPEC-T1-053: The QualityValidator SHALL detect missing required fields.
-
-TDD-T1-053: Tests SHALL verify that when an entity is missing a required 
-field, validation fails with the field listed in missing_required_fields.
-```
-
-### Implementation Process
-
-1. **Read specification document** for the component you're building
-2. **Identify the task** (e.g., T1-12: Implement Quality Validator)
-3. **Review all SPEC-XXX for that task** to understand requirements
-4. **Review all TDD-XXX for that task** to understand test requirements
-5. **Write tests first** (RED) based on TDD-XXX specs
-6. **Implement feature** (GREEN) to satisfy SPEC-XXX specs
-7. **Refactor** if valuable
-8. **Update docs** if you've made meaningful changes
-
-### When Specifications Are Unclear
-
-**Don't guess. Ask.**
-
-If a specification is ambiguous or conflicting:
-1. Stop and ask for clarification
-2. Document the ambiguity
-3. Propose 2-3 specific options
-4. Wait for decision before implementing
-
 ## Key Development Workflows
 
-### Adding a New Data Source
+### Adding a New Adapter
 
-1. Create source config YAML in `config/sources/`
-2. Add entry to `config/config_registry.json`
-3. Write tests for transformation
-4. Run ingestion: `make ingest source=new_source file=data.csv`
-5. Validate data quality metrics
+1. Create file in appropriate `adapters/` subdirectory
+2. Implement the corresponding port interface
+3. Keep implementation <150 lines
+4. Add to DI Container (`config.py`)
+5. Write unit tests with mocked dependencies
+6. Write integration tests with real implementation
+7. Update `.env.example` if new config needed
 
-### Adding a New Entity Type
-
-1. Create SQLAlchemy model in `src/db/models/`
-2. Create entity config YAML in `config/entities/`
-3. Create quality rules YAML in `config/quality_rules/`
-4. Create migration: `make migrate-create message="add new entity type"`
-5. Update export/resolution services
-6. Write tests for full pipeline
-
-### Adding a New Comparison Rule
-
-1. Update entity config YAML (`config/entities/*.yaml`)
-2. Add field comparator definition
-3. If custom logic needed, add comparator to `ComparatorRegistry`
-4. Write tests for comparison behavior
-5. Validate against sample data
-
-### Debugging Resolution Issues
-
-1. Check blocking: Are candidate pairs being generated?
-   - Query: `SELECT * FROM blocking_keys WHERE entity_id = ?`
-2. Check matching: Are pairs being scored correctly?
-   - Enable debug logging in `MatchingService`
-3. Check clustering: Are clusters formed correctly?
-   - Export cluster graph, visualize with NetworkX
-4. Check metrics: Review `resolution_runs` table
-
-### Performance Optimization
-
-**Only optimize if measurements show a problem.**
-
-1. Measure baseline performance
-2. Identify bottleneck (profiling, metrics)
-3. Implement optimization
-4. Measure improvement
-5. Document in code why optimization was needed
-
-**Common optimizations:**
-- Batch size tuning (default 1000)
-- DuckDB row group size (default 100,000)
-- Blocking rule tuning (max_block_size)
-- Parallel processing (careful with I/O)
-
-## Database Migrations
-
-### Creating Migrations
-
-```bash
-# Create new migration
-make migrate-create message="add lineage fields to entities"
-
-# Review generated migration in alembic/versions/
-# Edit upgrade() and downgrade() functions
-
-# Apply migration
-make migrate
-
-# Test rollback
-alembic downgrade -1
-```
-
-### Migration Guidelines
-
-- **Descriptive messages:** Explain what and why
-- **Test both directions:** Apply (upgrade) and rollback (downgrade)
-- **Idempotent:** Safe to run multiple times
-- **Small changes:** One logical change per migration
-- **Data migrations:** Separate schema from data changes
-
-## Observability
-
-### OpenTelemetry Integration
-
-All components emit structured events:
+**Example:**
 ```python
-from src.observability import tracer
+# scraper/adapters/alerting/console_alerting.py
+from scraper.ports.alerting import Alerting
+from scraper.domain.models import AlertSeverity
 
-with tracer.start_as_current_span("ingestion.batch_processed") as span:
-    span.set_attribute("batch_number", batch_num)
-    span.set_attribute("records_processed", len(batch))
+class ConsoleAlerting(Alerting):
+    """Simple console-based alerting for development."""
+
+    async def send_alert(
+        self,
+        title: str,
+        message: str,
+        severity: AlertSeverity,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        emoji = "ℹ️" if severity == AlertSeverity.INFO else "⚠️" if severity == AlertSeverity.WARNING else "🚨"
+        print(f"{emoji} [{severity.value.upper()}] {title}")
+        print(f"   {message}")
+        if metadata:
+            print(f"   Metadata: {metadata}")
 ```
 
-### Metrics to Monitor
+### Adding a New Use Case
 
-**Ingestion:**
-- `ingestion.records_processed` (counter)
-- `ingestion.records_quarantined` (counter)
-- `ingestion.duration_seconds` (histogram)
+1. Create file in `use_cases/`
+2. Define `__init__` with port dependencies
+3. Implement `execute()` method
+4. Write tests first (TDD)
+5. Document with comprehensive docstring
 
-**Resolution:**
-- `resolution.candidate_pairs` (gauge)
-- `resolution.matches_found` (counter)
-- `resolution.duration_seconds` (histogram)
+### Implementing a New Page Type
 
-**Data Quality:**
-- `quality.completeness_score` (histogram)
-- `quality.quarantine_rate` (gauge)
+1. Add enum value to `PageType` in `domain/models.py`
+2. Create sample pages (3-5 URLs)
+3. Define output schema (JSON Schema format)
+4. Run config generation with samples
+5. Test extraction on new pages
+6. Monitor coverage statistics
 
-### Logging Best Practices
+### Debugging Extraction Issues
 
-```python
-import structlog
-logger = structlog.get_logger()
-
-# Structured logging
-logger.info(
-    "ingestion_completed",
-    source_slug=request.source_slug,
-    records_processed=result.records_processed,
-    duration_seconds=duration
-)
-
-# Error logging with context
-logger.error(
-    "resolution_failed",
-    entity_type=entity_type,
-    error=str(e),
-    stack_trace=traceback.format_exc()
-)
-```
+1. **Check config:** Is selector correct? Test in browser DevTools
+2. **Check coverage:** Run `get_coverage_stats()` for the page type
+3. **Check logs:** Enable debug logging to see extraction attempts
+4. **Re-generate config:** If coverage <70%, regenerate with new samples
+5. **Manual test:** Use `lxml_extractor` directly on sample HTML
 
 ## Working with Claude Code
 
@@ -569,15 +606,15 @@ logger.error(
 When working on this codebase:
 
 1. **ALWAYS FOLLOW TDD** - No production code without a failing test first
-2. **Read specifications first** - Understand requirements before coding
+2. **Read docs first** - Understand System Design v2.0 before coding
 3. **Ask clarifying questions** - Don't assume or guess
 4. **Think from first principles** - Understand the "why" behind requirements
 5. **Keep it simple** - YAGNI applies to everything
-6. **Update docs** - Keep project documentation current
+6. **Each adapter <150 lines** - If longer, split responsibilities
 
 ### Before Making Changes
 
-1. Read relevant specification document
+1. Read relevant specification in `docs/`
 2. Understand the full context
 3. Review existing tests
 4. Identify what tests need to be written
@@ -588,7 +625,7 @@ When working on this codebase:
 
 ### When Stuck
 
-1. Review specifications for clarity
+1. Review System Design v2.0 for clarity
 2. Check if there are related tests
 3. Look for similar patterns in codebase
 4. Ask specific questions with context
@@ -606,25 +643,30 @@ If you think a feature is missing:
 3. Wait for specification update
 4. Then implement
 
-### Machine Learning Placeholder
+### Cost Optimization is Critical
 
-Specifications include ML interfaces but MVP uses deterministic rules. Do not implement ML features unless explicitly specified.
+At 100 domains, 10k pages/month each:
+- **v1.0 (page-level):** $18,000/year
+- **v2.0 (field-level):** $2,820/year
+- **Savings:** $15,180/year
 
-### Graph Context ("Smoking Guns")
+Always prefer deterministic extraction over LLM. Only use LLM when necessary.
 
-This is a key differentiator. Cross-entity evidence (e.g., same license) is MORE important than direct attribute comparison. Always consider graph context in matching logic.
+### Coverage Tracking is Key
 
-### Performance Targets Are Hard Requirements
+Monitor field-level success rates:
+- **>= 95%:** Excellent - No action needed
+- **80-94%:** Good - Monitor closely
+- **70-79%:** Warning - Schedule repair
+- **< 70%:** Critical - Regenerate config immediately
 
-- Full resolution: <30 minutes for 500K entities
-- Incremental: <5 minutes for 5K entities
-- If targets aren't met, optimization is REQUIRED
+### Multi-Sample Config Generation
 
-### Data Quality Is Critical
+Always use 3-5 sample pages when generating configs. Single-sample configs are brittle and fail in production.
 
-- Quarantine rate should be <5%
-- Precision >95%, Recall >90%
-- If quality degrades, stop and investigate
+### Field-Level Fallback
+
+Never re-extract the entire page with LLM. Only extract missing fields. This is the key cost optimization.
 
 ## Quick Reference
 
@@ -632,34 +674,78 @@ This is a key differentiator. Cross-entity evidence (e.g., same license) is MORE
 
 ```bash
 # Start fresh
-make clean && make rebuild && make migrate
+make clean && make setup
 
-# Run full pipeline
-make ingest source=colorado_pt file=data.csv
-make export type=full
-make resolve entity_type=person
-make import run_id=<id>
-
-# Run tests for component
-uv run pytest tests/unit/test_ingestion/
-uv run pytest tests/unit/test_resolution/
+# Run tests
+make test
+make test-integration
+make test-all
 
 # Check code quality
 make lint
 make lint-fix
+make format
 
-# View logs
-make logs component=ingestion
-make logs component=resolution
+# Development
+make shell  # IPython with imports
+make run    # Run CLI
 ```
 
 ### Key Files
 
-- `/docs/specifications/README.md` - Specification index
-- `config/config_registry.json` - Config file registry
-- `src/db/models/` - Database models
-- `tests/fixtures/synthetic_data.py` - Test data generation
+- `/docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md` - Complete technical spec
+- `/docs/ParserGPT_Comparison.md` - Design rationale
+- `/docs/QUICKSTART.md` - 5-minute setup guide
+- `scraper/config.py` - DI Container
+- `scraper/domain/models.py` - All domain models
+
+### Environment Variables
+
+```bash
+# Required
+ANTHROPIC_API_KEY=sk-ant-...    # For LLM operations
+
+# Optional (defaults to simple adapters)
+FETCHER=playwright              # or httpx
+STORAGE=s3                      # or local
+LLM_PROVIDER=pocketflow         # or direct
+ALERTING=knock                  # or console
+
+# S3 Storage (if used)
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+S3_BUCKET=...
+
+# Knock Alerting (if used)
+KNOCK_API_KEY=...
+KNOCK_WORKFLOW_KEY=...
+```
+
+## Phase Roadmap
+
+### Phase 1 (Weeks 1-4): Core System ✅
+- Simple adapters (httpx, local, console)
+- Basic LLM provider (single-sample config)
+- Core use cases (ScrapePage)
+- **Goal:** Working end-to-end
+
+### Phase 2 (Weeks 5-8): ParserGPT Enhancements 🚧
+- Multi-sample config generation
+- Field-level LLM fallback
+- Validation + repair loops
+- Coverage tracking
+- **Goal:** Production-quality extraction
+
+### Phase 3 (Weeks 9-16): Scale 📋
+- Production adapters (S3, Knock, Playwright)
+- Orchestration (scheduling, queues)
+- Advanced observability
+- **Goal:** 100+ domains at scale
 
 ---
 
-**Remember: Specifications define behavior. Tests verify behavior. Code implements behavior. In that order.**
+**Remember: Clean Architecture + YAGNI + TDD + ParserGPT Patterns = Production-Ready Web Scraper**
+
+**Version:** 2.0
+**Last Updated:** November 17, 2025
+**Author:** Diego (CTO, Pickle)
