@@ -98,3 +98,17 @@ class ConfigGenerationResult(BaseModel):
     iterations_needed: int
     config_path: str
     sample_count: int
+
+
+class ScrapeResult(BaseModel):
+    """Result of scraping a single page."""
+    url: str
+    domain: str
+    page_type: PageType
+    extraction_method: ExtractionMethod
+    html_path: str
+    json_path: str
+    timestamp: datetime
+    data: Dict[str, Any]
+    success: bool
+    error_message: Optional[str] = None
