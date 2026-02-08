@@ -143,4 +143,4 @@ At 100 domains, 10k pages/month each:
 
 ---
 
-**Version:** 2.0 | **Author:** Diego | **Company:** Pickle
+**Version:** 2.0 | **Author:** Diego | **License:** Apache 2.0
