@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "domain": "test.local",
+  "page_type": "team_page",
+  "selectors": {
+    "name": {
+      "xpath": "//h1[@class='name']/text()"
+    },
+    "title": {
+      "xpath": "//div[@class='title']/text()"
+    },
+    "email": {
+      "xpath": "//a[contains(@href, 'mailto:')]/text()"
+    },
+    "phone": {
+      "xpath": "//span[@class='phone']/text()"
+    }
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {"type": "string"},
+      "title": {"type": "string"},
+      "email": {"type": "string"},
+      "phone": {"type": "string"}
+    },
+    "required": ["name", "email"]
+  }
+}

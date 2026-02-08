@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "domain": "httpbin.org",
+  "page_type": "test_page",
+  "selectors": {
+    "title": {
+      "xpath": "//title/text()"
+    },
+    "heading": {
+      "xpath": "//h2/text()"
+    }
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string"},
+      "heading": {"type": "string"}
+    },
+    "required": ["title"]
+  }
+}
