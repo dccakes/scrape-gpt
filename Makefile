@@ -57,19 +57,19 @@ pre-commit:
 # Testing & Code Quality
 test:
 	@echo "🧪 Running unit tests..."
-	python -m pytest tests/unit/ -v -m "unit or not integration and not e2e"
+	uv run python -m pytest tests/unit/ -v -m "unit or not integration and not e2e"
 
 test-integration:
 	@echo "🧪 Running integration tests..."
-	python -m pytest tests/integration/ -v -m integration
+	uv run python -m pytest tests/integration/ -v -m integration
 
 test-all:
 	@echo "🧪 Running all tests..."
-	python -m pytest tests/ -v
+	uv run python -m pytest tests/ -v
 
 test-coverage:
 	@echo "🧪 Running tests with coverage..."
-	python -m pytest tests/ --cov=scraper --cov-report=html --cov-report=term-missing
+	uv run python -m pytest tests/ --cov=scraper --cov-report=html --cov-report=term-missing
 	@echo "📊 Coverage report generated in htmlcov/index.html"
 
 lint:
@@ -92,7 +92,7 @@ format:
 # Development
 run:
 	@echo "🚀 Running scraper CLI..."
-	python -m scraper.cli
+	uv run python -m scraper.cli
 
 shell:
 	@echo "🐚 Starting IPython shell..."
@@ -103,11 +103,11 @@ shell:
 
 demo:
 	@echo "🎬 Running demo..."
-	python demo/run_demo.py
+	uv run python demo/run_demo.py
 
 demo-live:
 	@echo "🎬 Running live demo..."
-	python demo/run_demo.py --live
+	uv run python demo/run_demo.py --live
 
 # Quick shortcuts
 t: test
