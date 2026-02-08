@@ -36,7 +36,7 @@ def cli():
 @click.option(
     "--page-type",
     "-t",
-    type=click.Choice(["team_page", "careers_page", "provider_directory", "license_directory"]),
+    type=click.Choice([pt.value for pt in PageType if pt != PageType.UNKNOWN]),
     help="Page type (auto-detected if not provided)",
 )
 @click.option("--output", "-o", type=click.Choice(["json", "table"]), default="json")

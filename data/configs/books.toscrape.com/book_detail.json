@@ -1,0 +1,43 @@
+{
+  "version": "2.0",
+  "domain": "books.toscrape.com",
+  "page_type": "book_detail",
+  "selectors": {
+    "title": {
+      "xpath": "//h1/text()"
+    },
+    "price": {
+      "xpath": "//p[@class='price_color']/text()"
+    },
+    "availability": {
+      "xpath": "//p[contains(@class,'availability')]/i/following-sibling::text()"
+    },
+    "rating": {
+      "xpath": "//p[contains(@class,'star-rating')]/@class"
+    },
+    "upc": {
+      "xpath": "//th[text()='UPC']/following-sibling::td/text()"
+    },
+    "description": {
+      "xpath": "//div[@id='product_description']/following-sibling::p/text()"
+    },
+    "num_reviews": {
+      "xpath": "//th[text()='Number of reviews']/following-sibling::td/text()"
+    }
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string"},
+      "price": {"type": "string"},
+      "availability": {"type": "string"},
+      "rating": {"type": "string"},
+      "upc": {"type": "string"},
+      "description": {"type": "string"},
+      "num_reviews": {"type": "string"}
+    },
+    "required": ["title", "price", "availability", "upc", "description"]
+  },
+  "coverage_stats": {},
+  "total_pages_tested": 0
+}
