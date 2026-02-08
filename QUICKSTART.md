@@ -1,268 +1,115 @@
-# Quick Start Guide - v2.0
+# Quick Start Guide
 
-Get up and running with the enhanced LLM Web Scraper in 5 minutes.
+Get up and running in under 5 minutes.
 
-## What's New in v2.0?
-
-- ✅ **Multi-sample config generation** (3-5 pages for robust selectors)
-- ✅ **Field-level LLM fallback** (85% cost reduction!)
-- ✅ **Validation + repair loops** (quality gates)
-- ✅ **Coverage tracking** (health monitoring)
-
-**Read full details:** [UPDATE_SUMMARY.md](docs/UPDATE_SUMMARY.md)
-
-## 1. Install uv
+## 1. Install
 
 ```bash
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+pip install -e ".[dev]"
 ```
 
-## 2. Setup Project
+Or with uv:
 
 ```bash
-# Navigate to project
-cd llm-scraper-starter-v2
-
-# Create virtual environment
-uv venv
-
-# Activate
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\activate   # Windows
-
-# Install dependencies
+uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-
-# Install Playwright (if using browser)
-playwright install chromium
 ```
 
-## 3. Configure
+## 2. Run the Demo
 
 ```bash
-# Copy example
+make demo
+```
+
+No API key needed. This runs three extraction scenarios against bundled HTML fixtures from quotes.toscrape.com and books.toscrape.com:
+
+1. Multi-item XPath extraction (quotes, authors, tags)
+2. Single-item detail page extraction (title, price, UPC, etc.)
+3. Broken selector triggering field-level LLM fallback
+
+## 3. Run the Tests
+
+```bash
+make test           # 33 unit tests
+make test-all       # 42 total (unit + integration)
+```
+
+## 4. Scrape a Real Page
+
+To scrape a page you need:
+- A config file with XPath selectors (in `data/configs/<domain>/<page_type>.json`)
+- An `ANTHROPIC_API_KEY` in `.env` (only if LLM fallback is needed)
+
+```bash
 cp .env.example .env
+# Edit .env and add ANTHROPIC_API_KEY
 
-# Edit with your API keys
-# Minimum required: ANTHROPIC_API_KEY or OPENAI_API_KEY
+scraper scrape https://quotes.toscrape.com/ -t quotes_page
 ```
 
-## 4. Understand the Architecture
+See `data/configs/` for example config files.
 
-**Read these in order:**
-1. [UPDATE_SUMMARY.md](docs/UPDATE_SUMMARY.md) - What's new (10 min)
-2. [ParserGPT_Comparison.md](docs/ParserGPT_Comparison.md) - Why these changes (15 min)
-3. [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) - Technical spec (30 min)
+## 5. Create a Config for a New Site
 
-**Key Concept:** LLM as "Compiler"
-```
-Learn Once (Multi-Sample) → Run Fast (XPath) → Fallback Smart (Field-Level)
-```
+Configs are JSON files that tell the extractor which XPath/CSS selectors to use:
 
-## 5. Implementation Roadmap
-
-### Phase 1 (Weeks 1-4): Core System
-Implement v1.0 basics:
-- [ ] Console Alerting (30 lines)
-- [ ] Local Storage (100 lines)
-- [ ] Httpx Fetcher (40 lines)
-- [ ] Direct LLM Provider (80 lines)
-- [ ] Lxml Extractor (120 lines)
-- [ ] ScrapePage use case (150 lines)
-
-**Goal:** Working system end-to-end
-
-### Phase 2 (Weeks 5-8): ParserGPT Enhancements
-Add v2.0 sophistication:
-- [ ] Multi-sample collection
-- [ ] `propose_selectors()` method
-- [ ] `extract_fields()` method (field-level fallback)
-- [ ] Validation + repair loop
-- [ ] Coverage tracking
-
-**Goal:** Production-quality extraction
-
-### Phase 3 (Weeks 9-16): Scale
-- [ ] S3 Storage
-- [ ] Knock Alerting
-- [ ] Playwright Fetcher
-- [ ] PocketFlow Provider
-- [ ] Orchestration (Prefect/Celery)
-
-**Goal:** 100+ domains at scale
-
-## 6. Key Files to Implement
-
-### Week 1: Simple Adapters
-```
-scraper/adapters/alerting/console_alerting.py
-scraper/adapters/storage/local_storage.py
-scraper/adapters/fetchers/httpx_fetcher.py
+```json
+{
+  "version": "2.0",
+  "domain": "example.com",
+  "page_type": "team_page",
+  "selectors": {
+    "name":  { "xpath": "//h1[@class='name']/text()" },
+    "title": { "xpath": "//div[@class='title']/text()" },
+    "email": { "xpath": "//a[contains(@href, 'mailto:')]/text()" }
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name":  { "type": "string" },
+      "title": { "type": "string" },
+      "email": { "type": "string" }
+    },
+    "required": ["name", "email"]
+  },
+  "coverage_stats": {},
+  "total_pages_tested": 0
+}
 ```
 
-### Week 2: LLM + Extraction
+Save it to `data/configs/example.com/team_page.json` and you're ready to scrape.
+
+Tip: use your browser's DevTools (Inspect Element > Copy XPath) to find selectors.
+
+## 6. Project Layout
+
 ```
-scraper/adapters/llm/direct_provider.py
-scraper/adapters/extractors/lxml_extractor.py
+scraper/
+├── domain/          # Models and exceptions
+├── ports/           # Abstract interfaces
+├── adapters/        # Implementations (httpx, lxml, Anthropic, etc.)
+├── use_cases/       # Business logic (ScrapePage, ExtractWithFallback)
+├── config.py        # DI container -- swap providers via .env
+└── cli.py           # CLI entry point
+
+demo/                # Demo script and HTML fixtures
+data/configs/        # XPath configs per domain/page_type
+tests/               # 42 tests (unit + integration)
 ```
 
-### Week 3: Use Cases
-```
-scraper/use_cases/scrape_page.py
-scraper/config.py  (complete DI Container)
-```
-
-### Week 4: Integration
-```
-scraper/cli.py
-tests/e2e/test_full_flow.py
-```
-
-## 7. Testing Strategy
+## 7. Key Make Targets
 
 ```bash
-# Run all tests
-pytest
-
-# Unit tests only (fast)
-pytest tests/unit/ -m unit
-
-# Integration tests
-pytest tests/integration/ -m integration
-
-# With coverage
-pytest --cov=scraper --cov-report=html
+make demo               # Run demo (offline)
+make demo-live          # Run demo against live sites
+make test               # Unit tests
+make test-all           # All tests
+make lint               # Ruff + mypy
+make format             # Black formatting
 ```
 
-## 8. Cost Expectations
+## Next Steps
 
-### Config Generation (One-Time)
-- v1.0: $0.02 per config
-- v2.0: $0.14 per config (7x higher, but worth it!)
-
-### Runtime (Per 10k Pages)
-- v1.0: ~$15/month
-- v2.0: ~$2.35/month
-- **Savings: 85%** 🎉
-
-### At Scale (100 Domains)
-- v1.0: $18,000/year
-- v2.0: $2,820/year
-- **Savings: $15,180/year**
-
-## 9. Development Workflow
-
-### Add a New Adapter
-
-1. Create file in appropriate directory
-2. Implement port interface
-3. Keep <150 lines
-4. Add to DI Container (`config.py`)
-5. Add tests
-6. Update `.env.example` if needed
-
-**Example:**
-```python
-# scraper/adapters/alerting/console_alerting.py
-from scraper.ports.alerting import Alerting
-
-class ConsoleAlerting(Alerting):
-    async def send_alert(self, title, message, severity, metadata):
-        print(f"[{severity}] {title}: {message}")
-```
-
-```python
-# scraper/config.py
-@property
-def alerting(self) -> Alerting:
-    if not self._alerting:
-        alert_type = os.getenv("ALERTING", "console")
-        if alert_type == "console":
-            from scraper.adapters.alerting.console_alerting import ConsoleAlerting
-            self._alerting = ConsoleAlerting()
-    return self._alerting
-```
-
-## 10. Next Steps
-
-### Today
-1. ✅ Read UPDATE_SUMMARY.md
-2. ✅ Setup environment
-3. ✅ Review architecture diagrams
-
-### This Week
-4. Implement ConsoleAlerting
-5. Implement LocalStorage
-6. Implement HttpxFetcher
-7. Validate DI Container pattern
-
-### Next 2-3 Weeks
-8. Implement DirectProvider
-9. Implement LxmlExtractor
-10. Implement ScrapePage use case
-11. Write tests
-12. **First real scrape!**
-
-## 11. Resources
-
-### Documentation
-- [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) - Complete spec
-- [ParserGPT Comparison](docs/ParserGPT_Comparison.md) - Detailed analysis
-- [ADR-006](docs/adr/ADR-006-ParserGPT-Enhancements.md) - Decision rationale
-
-### External
-- uv docs: https://github.com/astral-sh/uv
-- Pydantic: https://docs.pydantic.dev
-- Anthropic API: https://docs.anthropic.com
-
-## 12. Troubleshooting
-
-### Import Errors
-```bash
-uv pip install -e .
-```
-
-### Tests Failing with NotImplementedError
-**This is expected!** Most adapters aren't implemented yet. Start with Phase 1.
-
-### Environment Variables Not Loading
-```bash
-# Check .env exists
-ls -la .env
-
-# Verify python-dotenv installed
-uv pip list | grep dotenv
-```
-
-## 13. Success Metrics
-
-### Phase 1 (Week 4)
-- [ ] First domain scraped successfully
-- [ ] All unit tests passing
-- [ ] DI Container working
-- [ ] Clean Architecture validated
-
-### Phase 2 (Week 8)
-- [ ] Config generation achieves 80%+ coverage
-- [ ] LLM costs reduced 70%+
-- [ ] Field-level fallback working
-- [ ] Coverage tracking operational
-
-### Phase 3 (Week 16)
-- [ ] 100+ domains configured
-- [ ] 10,000+ pages scraped
-- [ ] Auto-repair working
-- [ ] System maintainable
-
----
-
-**Ready to build!** Start with Phase 1, Week 1. 🚀
-
-**Questions?** All answers in the docs:
-- Architecture? → System Design v2.0
-- Why v2.0? → UPDATE_SUMMARY.md
-- Comparison? → ParserGPT_Comparison.md
+- Read the [System Design](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) for the full technical spec
+- Look at `demo/run_demo.py` to understand the extraction pipeline
+- Create configs for your target sites and start scraping
