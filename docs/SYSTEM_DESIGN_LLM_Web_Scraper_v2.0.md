@@ -2,7 +2,7 @@
 
 **Updated:** November 17, 2025  
 **Version:** 2.0 (ParserGPT-inspired enhancements)  
-**Author:** Diego (CTO, Pickle)
+**Author:** Diego
 
 ---
 
@@ -1890,5 +1890,5 @@ This enhanced design is:
 
 **Document Version:** 2.0  
 **Last Updated:** November 17, 2025  
-**Author:** Diego (CTO, Pickle)  
+**Author:** Diego  
 **Inspired By:** ParserGPT analysis and comparison

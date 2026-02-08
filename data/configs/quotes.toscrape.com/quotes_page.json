@@ -1,0 +1,34 @@
+{
+  "version": "2.0",
+  "domain": "quotes.toscrape.com",
+  "page_type": "quotes_page",
+  "selectors": {
+    "quotes": {
+      "xpath": "//div[@class='quote']/span[@class='text']/text()",
+      "multiple": true
+    },
+    "authors": {
+      "xpath": "//div[@class='quote']//small[@class='author']/text()",
+      "multiple": true
+    },
+    "tags": {
+      "xpath": "//div[@class='quote']//div[@class='tags']/meta[@class='keywords']/@content",
+      "multiple": true
+    },
+    "page_title": {
+      "css": "h1 a"
+    }
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "quotes": {"type": "array", "items": {"type": "string"}},
+      "authors": {"type": "array", "items": {"type": "string"}},
+      "tags": {"type": "array", "items": {"type": "string"}},
+      "page_title": {"type": "string"}
+    },
+    "required": ["quotes", "authors", "tags", "page_title"]
+  },
+  "coverage_stats": {},
+  "total_pages_tested": 0
+}

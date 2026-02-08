@@ -1,158 +1,146 @@
 # LLM Web Scraper v2.0
 
-**Enhanced with ParserGPT-inspired patterns for production-grade extraction**
+Intelligent web scraping system that combines deterministic XPath extraction with LLM-powered field-level fallback. The LLM acts as a "compiler" that generates extraction rules, not as a runtime extractor -- dramatically reducing cost while maintaining high accuracy.
 
-## 🎯 Overview
-
-Intelligent web scraping system that combines deterministic XPath extraction with LLM-powered adaptation. Think of the LLM as a "compiler" that generates extraction rules, not a runtime extractor.
-
-**Version 2.0 Enhancements:**
-- ✅ Multi-sample config generation (more robust selectors)
-- ✅ Field-level LLM fallback (85% cost reduction)
-- ✅ Validation + repair loops (quality gates)
-- ✅ Coverage tracking (health monitoring)
-
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install dependencies
+pip install -e ".[dev]"
 
-# Setup project
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-
-# Configure
-cp .env.example .env
-# Add your API keys
-
-# Start reading
-cat docs/UPDATE_SUMMARY.md
+# Run the demo (no API key needed)
+make demo
 ```
 
-## 📚 Documentation
+The demo runs three scenarios against bundled HTML fixtures:
 
-**Start Here:**
-- [UPDATE_SUMMARY.md](docs/UPDATE_SUMMARY.md) - What's new in v2.0
-- [QUICKSTART.md](QUICKSTART.md) - Get started in 5 minutes
+1. **Quotes page** -- multi-item XPath extraction (quotes, authors, tags)
+2. **Book detail** -- single-item extraction (title, price, UPC, description)
+3. **Broken selector** -- shows field-level LLM fallback when one XPath breaks
 
-**Core Docs:**
-- [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) - Complete technical spec
-- [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) - Visual reference
-- [ParserGPT Comparison](docs/ParserGPT_Comparison.md) - Detailed analysis
+To run against live websites instead of fixtures:
 
-**Architecture Decisions:**
-- [ADR-001: Clean Architecture](docs/adr/001-clean-architecture.md)
-- [ADR-005: uv Package Manager](docs/adr/005-uv-package-manager.md)
-- [ADR-006: ParserGPT Enhancements](docs/adr/ADR-006-ParserGPT-Enhancements.md)
-
-## 💡 Key Concepts
-
-### Deterministic-First, LLM as Compiler
-```
-Learn Once (Multi-Sample) → Run Fast (XPath) → Fallback Smart (Field-Level LLM)
+```bash
+make demo-live
 ```
 
-### Cost Efficiency
-- **v1.0 (page-level):** $15/month per 10k pages
-- **v2.0 (field-level):** $2.35/month per 10k pages
-- **Savings:** 85% reduction! 🎉
+## How It Works
 
-### Clean Architecture
 ```
-Domain → Ports → Adapters → External Systems
+XPath extraction (fast, free)
+        |
+        v
+  All fields OK? ──yes──> Done
+        |
+       no
+        v
+Send ONLY missing fields to LLM (cheap)
+        |
+        v
+  Merge results, update coverage stats
 ```
-Swap any provider via `.env` with zero code changes.
 
-## 📊 Phase Roadmap
+The key insight: when a selector breaks, only **that field** goes to the LLM, not the entire page. At scale this saves ~85% vs page-level LLM extraction.
 
-### Phase 1 (Weeks 1-4): Core System
-- Simple adapters (httpx, local storage, console)
-- Basic LLM provider
-- ScrapePage use case
-- **Goal:** Working system end-to-end
+## Project Status
 
-### Phase 2 (Weeks 5-8): ParserGPT Enhancements
-- Multi-sample config generation
-- Field-level LLM fallback
+### Phase 1: Core System -- Complete
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| Domain models | Done | Pydantic models, custom exceptions |
+| Ports (interfaces) | Done | 5 ABCs: Fetcher, Extractor, LLM, Storage, Alerting |
+| httpx fetcher | Done | Async HTTP GET |
+| lxml extractor | Done | XPath + CSS selector extraction |
+| Direct LLM provider | Done | Anthropic API (`extract_fields` only) |
+| Local storage | Done | Filesystem with coverage tracking |
+| Console alerting | Done | Stdout alerts |
+| ExtractWithFallback | Done | Field-level LLM fallback use case |
+| ScrapePage | Done | End-to-end orchestration |
+| CLI | Done | `scraper scrape URL`, `scraper info` |
+| Tests | Done | 42 tests passing (33 unit + 9 integration) |
+
+### Phase 2: ParserGPT Enhancements -- Not Started
+
+- Multi-sample config generation (3-5 pages for robust selectors)
+- `propose_selectors()` / `repair_selectors()` in LLM provider
 - Validation + repair loops
-- Coverage tracking
-- **Goal:** Production-quality extraction
+- GenerateConfig use case
 
-### Phase 3 (Weeks 9-16): Scale
-- Production adapters (S3, Knock, Playwright)
-- Orchestration (Prefect, Celery)
-- Advanced observability
-- **Goal:** 100+ domains at scale
+### Phase 3: Scale -- Not Started
 
-## 🎓 What You'll Learn
+- Playwright fetcher (JavaScript-heavy sites)
+- S3 storage, Knock alerting
+- PocketFlow LLM orchestration
 
-- Clean Architecture with YAGNI/KISS
-- Dependency Inversion Principle
-- Port & Adapter pattern
-- LLM cost optimization
-- Modern Python (async, Pydantic)
-- Web scraping at scale
+## Architecture
 
-## 🔧 Project Structure
+Clean Architecture with dependency injection. Swap any provider via `.env` with zero code changes.
 
 ```
 scraper/
-├── domain/          # ✅ Complete (models, exceptions)
-├── ports/           # ✅ Complete (5 interfaces)
-├── adapters/        # 📝 Ready for implementation
-├── use_cases/       # 📝 Ready for implementation
-└── config.py        # ✅ DI Container skeleton
+├── domain/             # Models, exceptions (no external deps)
+├── ports/              # Abstract interfaces (5 ABCs)
+├── adapters/           # Concrete implementations
+│   ├── fetchers/       #   httpx (done), playwright (Phase 3)
+│   ├── extractors/     #   lxml (done)
+│   ├── llm/            #   direct Anthropic/OpenAI (done)
+│   ├── storage/        #   local filesystem (done), S3 (Phase 3)
+│   └── alerting/       #   console (done), Knock (Phase 3)
+├── use_cases/          # Business workflows
+│   ├── scrape_page.py          # End-to-end orchestration
+│   └── extract_with_fallback.py # Field-level LLM fallback
+├── config.py           # DI container
+└── cli.py              # Click CLI
 
-docs/
-├── System Design v2.0           # ✅ Enhanced
-├── Architecture Diagrams        # ✅ 8 Mermaid diagrams
-├── ParserGPT Comparison         # ✅ Detailed analysis
-└── adr/                         # ✅ 3 ADRs
-
+demo/                   # Demo fixtures and script
 tests/
-├── unit/            # 📝 Fast, isolated
-├── integration/     # 📝 Real adapters
-└── e2e/            # 📝 Full stack
+├── unit/               # 33 tests, mocked deps
+└── integration/        # 9 tests, real adapters
 ```
 
-## 💰 Cost Analysis
+## Development
+
+```bash
+make test               # Unit tests
+make test-integration   # Integration tests
+make test-all           # Everything
+make lint               # Ruff + mypy
+make format             # Black
+make demo               # Run demo offline
+```
+
+## Configuration
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Options |
+|----------|---------|---------|
+| `FETCHER` | `httpx` | `httpx`, `playwright` |
+| `STORAGE` | `local` | `local`, `s3` |
+| `LLM_PROVIDER` | `direct` | `direct`, `pocketflow` |
+| `ALERTING` | `console` | `console`, `knock` |
+| `ANTHROPIC_API_KEY` | -- | Required for LLM fallback |
+
+## Cost at Scale
 
 At 100 domains, 10k pages/month each:
 
-| Version | Monthly | Annual | Savings |
-|---------|---------|--------|---------|
-| v1.0 | $1,500 | $18,000 | - |
-| v2.0 | $235 | $2,820 | **$15,180/yr** |
+| Approach | Annual Cost |
+|----------|------------|
+| Page-level LLM (v1.0) | $18,000 |
+| Field-level fallback (v2.0) | $2,820 |
+| **Savings** | **$15,180/yr** |
 
-## ✅ Success Stories
+## Documentation
 
-**From ParserGPT Analysis:**
-- Multi-sample learning = more robust configs
-- Field-level fallback = 85% cost reduction
-- Validation loops = automated quality assurance
-- Coverage tracking = proactive maintenance
-
-**Our Advantage:**
-- Clean Architecture = long-term maintainability
-- YAGNI = faster MVP (working in 4 weeks)
-- Testability = mock any port
-- Flexibility = swap providers instantly
-
-## 🤝 Contributing
-
-1. Read [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md)
-2. Follow Clean Architecture principles
-3. Keep adapters <150 lines
-4. Write tests first (TDD)
-5. Document decisions in ADRs
-
-## 📝 License
-
-[Your License Here]
+- [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) -- Complete technical spec
+- [ParserGPT Comparison](docs/ParserGPT_Comparison.md) -- Design rationale
+- [Update Summary](docs/UPDATE_SUMMARY.md) -- What changed from v1.0
+- [ADR-006: ParserGPT Enhancements](docs/adr/ADR-006-ParserGPT-Enhancements.md)
 
 ---
 
-**Built with Clean Architecture, YAGNI, KISS, and ParserGPT-inspired patterns**  
-**CTO:** Diego | **Company:** Pickle | **Version:** 2.0
+**Version:** 2.0 | **Author:** Diego | **License:** Apache 2.0

@@ -168,7 +168,11 @@ class ScrapePage:
         """Auto-detect page type based on URL and content."""
         url_lower = url.lower()
 
-        if "team" in url_lower or "staff" in url_lower:
+        if "quotes.toscrape" in url_lower:
+            return PageType.QUOTES_PAGE
+        elif "books.toscrape" in url_lower and "/catalogue/" in url_lower:
+            return PageType.BOOK_DETAIL
+        elif "team" in url_lower or "staff" in url_lower:
             return PageType.TEAM_PAGE
         elif "career" in url_lower or "job" in url_lower:
             return PageType.CAREERS_PAGE

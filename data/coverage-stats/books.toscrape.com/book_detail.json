@@ -1,0 +1,30 @@
+{
+  "title": {
+    "successes": 2,
+    "total": 2
+  },
+  "price": {
+    "successes": 2,
+    "total": 2
+  },
+  "availability": {
+    "successes": 2,
+    "total": 2
+  },
+  "rating": {
+    "successes": 2,
+    "total": 2
+  },
+  "upc": {
+    "successes": 2,
+    "total": 2
+  },
+  "description": {
+    "successes": 2,
+    "total": 2
+  },
+  "num_reviews": {
+    "successes": 2,
+    "total": 2
+  }
+}

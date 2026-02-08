@@ -3,11 +3,11 @@ name = "llm-scraper"
 version = "2.0.0"
 description = "Intelligent web scraping with XPath and LLM fallback - Enhanced with ParserGPT patterns"
 authors = [
-    {name = "Diego", email = "diego@pickle.com"}
+    {name = "Diego", email = "diego@carvallo.io"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
-license = {text = "MIT"}
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
 
 dependencies = [
     "pydantic>=2.0.0",
@@ -48,7 +48,7 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = ["-v", "--strict-markers", "--cov=scraper"]
+addopts = ["-v", "--strict-markers"]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",

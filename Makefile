@@ -1,4 +1,4 @@
-.PHONY: help setup install clean test test-integration test-all test-coverage lint lint-fix format run shell
+.PHONY: help setup install clean test test-integration test-all test-coverage lint lint-fix format run shell demo
 
 # Default target
 help:
@@ -20,6 +20,8 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  make run              - Run the scraper CLI"
+	@echo "  make demo             - Run the demo (offline, no API key needed)"
+	@echo "  make demo-live        - Run the demo against live websites"
 	@echo "  make shell            - Start IPython shell with imports"
 	@echo ""
 
@@ -55,19 +57,19 @@ pre-commit:
 # Testing & Code Quality
 test:
 	@echo "🧪 Running unit tests..."
-	pytest tests/unit/ -v -m "unit or not integration and not e2e"
+	uv run python -m pytest tests/unit/ -v -m "unit or not integration and not e2e"
 
 test-integration:
 	@echo "🧪 Running integration tests..."
-	pytest tests/integration/ -v -m integration
+	uv run python -m pytest tests/integration/ -v -m integration
 
 test-all:
 	@echo "🧪 Running all tests..."
-	pytest tests/ -v
+	uv run python -m pytest tests/ -v
 
 test-coverage:
 	@echo "🧪 Running tests with coverage..."
-	pytest tests/ --cov=scraper --cov-report=html --cov-report=term-missing
+	uv run python -m pytest tests/ --cov=scraper --cov-report=html --cov-report=term-missing
 	@echo "📊 Coverage report generated in htmlcov/index.html"
 
 lint:
@@ -90,7 +92,7 @@ format:
 # Development
 run:
 	@echo "🚀 Running scraper CLI..."
-	python -m scraper.cli
+	uv run python -m scraper.cli
 
 shell:
 	@echo "🐚 Starting IPython shell..."
@@ -98,6 +100,14 @@ shell:
 	@echo "   - from scraper.domain.models import *"
 	@echo "   - from scraper.config import container"
 	ipython
+
+demo:
+	@echo "🎬 Running demo..."
+	uv run python demo/run_demo.py
+
+demo-live:
+	@echo "🎬 Running live demo..."
+	uv run python demo/run_demo.py --live
 
 # Quick shortcuts
 t: test

@@ -35,6 +35,8 @@ class PageType(str, Enum):
     CAREERS_PAGE = "careers_page"
     PROVIDER_DIRECTORY = "provider_directory"
     LICENSE_DIRECTORY = "license_directory"
+    QUOTES_PAGE = "quotes_page"
+    BOOK_DETAIL = "book_detail"
     UNKNOWN = "unknown"
 
 

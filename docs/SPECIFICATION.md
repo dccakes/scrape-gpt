@@ -771,4 +771,4 @@ class ExtractWithFallback:
 **Document Version**: 1.0
 **Last Updated**: November 17, 2025
 **Next Review**: End of Phase 1 (Week 4)
-**Author**: Diego (CTO, Pickle)
+**Author**: Diego
