@@ -3,7 +3,7 @@ name = "llm-scraper"
 version = "2.0.0"
 description = "Intelligent web scraping with XPath and LLM fallback - Enhanced with ParserGPT patterns"
 authors = [
-    {name = "Diego", email = "diego@pickle.com"}
+    {name = "Diego"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"

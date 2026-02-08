@@ -748,4 +748,4 @@ KNOCK_WORKFLOW_KEY=...
 
 **Version:** 2.0
 **Last Updated:** November 17, 2025
-**Author:** Diego (CTO, Pickle)
+**Author:** Diego
