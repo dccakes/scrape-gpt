@@ -1,5 +1,9 @@
 # LLM Web Scraper v2.0
 
+[![CI](https://github.com/dccakes/scrape-gpt/actions/workflows/ci.yml/badge.svg)](https://github.com/dccakes/scrape-gpt/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Intelligent web scraping system that combines deterministic XPath extraction with LLM-powered field-level fallback. The LLM acts as a "compiler" that generates extraction rules, not as a runtime extractor -- dramatically reducing cost while maintaining high accuracy.
 
 ## Quick Start
