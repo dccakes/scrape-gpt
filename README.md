@@ -18,15 +18,54 @@ make demo
 
 The demo runs three scenarios against bundled HTML fixtures:
 
-1. **Quotes page** -- multi-item XPath extraction (quotes, authors, tags)
-2. **Book detail** -- single-item extraction (title, price, UPC, description)
-3. **Broken selector** -- shows field-level LLM fallback when one XPath breaks
+1. **Quotes page** — multi-item XPath extraction (quotes, authors, tags)
+2. **Book detail** — single-item extraction (title, price, UPC, description)
+3. **Broken selector** — shows field-level LLM fallback when one XPath breaks
 
 To run against live websites instead of fixtures:
 
 ```bash
 make demo-live
 ```
+
+## Demo Output
+
+Running `make demo` against the bundled fixtures (no API key or network needed):
+
+```
+============================================================
+               LLM Web Scraper v2.0 - Demo
+============================================================
+  Mode: OFFLINE (local HTML fixtures)
+
+  Demo 1: Quotes to Scrape
+============================================================
+--- Step 3: Extract with XPath ---
+--- Step 4: Results ---
+  Method:     xpath
+  Confidence: 100%
+  Fields OK:  4
+
+  Quote 1: "The world as we have created it is a process of our thinking..."
+    -- Albert Einstein  |  Tags: change, deep-thoughts, thinking, world
+
+  Quote 2: "It is our choices, Harry, that show what we truly are..."
+    -- J.K. Rowling  |  Tags: abilities, choices
+
+============================================================
+  Demo 3: Broken Selector (LLM Fallback)
+============================================================
+--- Step 3: Extract with XPath ---
+  [WARN] title: XPath failed — no match
+--- Step 4: Sending broken fields to LLM ---
+  Fields to repair: ['title']
+--- Step 5: Results ---
+  Method:     xpath+llm_fallback
+  Confidence: 100%
+  Fields OK:  4  (1 repaired by LLM)
+```
+
+The key moment is Demo 3: one XPath selector breaks, only that field goes to the LLM, and the result merges back seamlessly.
 
 ## How It Works
 
@@ -140,11 +179,12 @@ At 100 domains, 10k pages/month each:
 
 ## Documentation
 
-- [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) -- Complete technical spec
-- [ParserGPT Comparison](docs/ParserGPT_Comparison.md) -- Design rationale
-- [Update Summary](docs/UPDATE_SUMMARY.md) -- What changed from v1.0
+- [System Design v2.0](docs/SYSTEM_DESIGN_LLM_Web_Scraper_v2.0.md) — Complete technical spec
+- [ParserGPT Comparison](docs/ParserGPT_Comparison.md) — Design rationale
+- [Update Summary](docs/UPDATE_SUMMARY.md) — What changed from v1.0
 - [ADR-006: ParserGPT Enhancements](docs/adr/ADR-006-ParserGPT-Enhancements.md)
+- [Blog: The design journey behind this scraper](https://carvallo.io/blog/posts/web-scraper-design-journey) — How the architecture evolved and what Claude Code's role was
 
 ---
 
-**Version:** 2.0 | **Author:** Diego | **License:** Apache 2.0
+**Version:** 2.0 | **Author:** [Diego Carvallo](https://carvallo.io) | **License:** Apache 2.0
